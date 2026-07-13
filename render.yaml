@@ -1,0 +1,96 @@
+# render.yaml
+services:
+  # --- 1. API Gateway Service ---
+  - type: web
+    name: medverify-gateway
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO_NAME # <-- CHANGE THIS
+    plan: free
+    envVars:
+      - key: VERIFICATION_SERVICE_URL
+        value: http://medverify-verification:8001
+      - key: ADMIN_SERVICE_URL
+        value: http://medverify-admin:8002
+      - key: SMS_WEBHOOK_URL
+        value: http://medverify-sms:8001
+    dockerContext: ./services/api-gateway
+    dockerfilePath: ./services/api-gateway/Dockerfile
+
+  # --- 2. Verification Service ---
+  - type: web
+    name: medverify-verification
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO_NAME # <-- CHANGE THIS
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: medverify-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: medverify-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: medverify-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: medverify-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: medverify-db
+          property: password
+    dockerContext: ./services/verification-service
+    dockerfilePath: ./services/verification-service/Dockerfile
+
+  # --- 3. Admin Service ---
+  - type: web
+    name: medverify-admin
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO_NAME # <-- CHANGE THIS
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: medverify-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: medverify-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: medverify-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: medverify-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: medverify-db
+          property: password
+      - key: ADMIN_API_KEY
+        value: "secret-admin-key"  # CHANGE THIS for production!
+    dockerContext: ./services/admin-service
+    dockerfilePath: ./services/admin-service/Dockerfile
+
+  # --- 4. SMS Webhook Service ---
+  - type: web
+    name: medverify-sms
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO_NAME # <-- CHANGE THIS
+    plan: free
+    envVars:
+      - key: VERIFICATION_SERVICE_URL
+        value: http://medverify-verification:8001
+    dockerContext: ./services/sms-webhook-service
+    dockerfilePath: ./services/sms-webhook-service/Dockerfile
+
+  # --- 5. PostgreSQL Database ---
+  - type: postgresql
+    name: medverify-db
+    plan: free

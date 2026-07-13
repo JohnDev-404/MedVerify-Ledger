@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: medverify-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /  # optional
+spec:
+  rules:
+  - host: medverify.local  # local domain; for Minikube we can use nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 8000

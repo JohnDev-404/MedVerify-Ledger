@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: medverify-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: medverify
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  verification-service:
+    build: ./services/verification-service
+    container_name: verification-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: medverify
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin-service:
+    build: ./services/admin-service
+    container_name: admin-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: medverify
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      ADMIN_API_KEY: "secret-admin-key"  # change for production
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  sms-webhook-service:
+    build: ./services/sms-webhook-service
+    container_name: sms-webhook-service
+    environment:
+      VERIFICATION_SERVICE_URL: "http://verification-service:8001"
+    ports:
+      - "8003:8001"
+    depends_on:
+      - verification-service
+    
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - verification-service
+      - admin-service
+      - sms-webhook-service
+    environment:
+      - VERIFICATION_SERVICE_URL=http://verification-service:8001
+      - ADMIN_SERVICE_URL=http://admin-service:8002
+      - SMS_WEBHOOK_URL=http://sms-webhook-service:8001   # <-- FIX: port 8001, not 8003
+
+volumes:
+  postgres_data:

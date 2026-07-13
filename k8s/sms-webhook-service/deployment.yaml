@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sms-webhook-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sms-webhook-service
+  template:
+    metadata:
+      labels:
+        app: sms-webhook-service
+    spec:
+      containers:
+      - name: sms-webhook-service
+        image: medverify/sms-webhook-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8003
+        env:
+        - name: VERIFICATION_SERVICE_URL
+          value: "http://verification-service:8001"

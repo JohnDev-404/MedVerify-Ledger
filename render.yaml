@@ -1,10 +1,8 @@
-# render.yaml
 services:
   # --- 1. API Gateway Service ---
   - type: web
     name: medverify-gateway
     runtime: docker
-    repo:  https://github.com/JohnDev-404/MedVerify-Ledger
     plan: free
     envVars:
       - key: VERIFICATION_SERVICE_URL
@@ -20,7 +18,6 @@ services:
   - type: web
     name: medverify-verification
     runtime: docker
-    repo: https://github.com/JohnDev-404/MedVerify-Ledger 
     plan: free
     envVars:
       - key: DB_HOST
@@ -50,7 +47,6 @@ services:
   - type: web
     name: medverify-admin
     runtime: docker
-    repo: https://github.com/JohnDev-404/MedVerify-Ledger
     plan: free
     envVars:
       - key: DB_HOST
@@ -82,7 +78,6 @@ services:
   - type: web
     name: medverify-sms
     runtime: docker
-    repo: https://github.com/JohnDev-404/MedVerify-Ledger
     plan: free
     envVars:
       - key: VERIFICATION_SERVICE_URL
@@ -90,7 +85,9 @@ services:
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
 
-  # --- 5. PostgreSQL Database ---
-  - type: postgresql
-    name: medverify-db
+# --- PostgreSQL Database (Defined OUTSIDE services) ---
+databases:
+  - name: medverify-db
     plan: free
+    databaseName: medverify      # Optional: default DB name
+    user: medverify_user         # Optional: default username

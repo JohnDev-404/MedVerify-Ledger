@@ -9,56 +9,66 @@ const PORT = process.env.PORT || 8000;
 // Enable CORS
 app.use(cors());
 
-// Serve static files from the 'public' folder
+// Serve static files from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/admin', (req, res) => {
+// --- Frontend Routes (example) ---
+// Login page at /login
+app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-
-// --- ADMIN PAGE (explicit route) ---
+// Admin dashboard at /admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// --- PROXY ROUTES ---
+// --- Proxy Routes (configured via environment variables) ---
 
-// Proxy: /api/verify → verification-service
+// 1. Verification Service
+const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'http://verification-service:8001';
 app.use(
   '/api/verify',
   createProxyMiddleware({
-    target: 'http://verification-service:8001',
+    target: VERIFICATION_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: { '^/api/verify': '/verify' },
+    logLevel: 'debug', // helpful to see proxy activity in logs
   })
 );
 
-// Proxy: /api/admin → admin-service
+// 2. Admin Service
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'http://admin-service:8002';
 app.use(
   '/api/admin',
   createProxyMiddleware({
-    target: 'http://admin-service:8002',
+    target: ADMIN_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: { '^/api/admin': '' },
+    logLevel: 'debug',
   })
 );
 
-// Proxy: /api/sms → sms-webhook-service
+// 3. SMS Webhook Service
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'http://sms-webhook-service:8003';
 app.use(
   '/api/sms',
   createProxyMiddleware({
-    target: 'http://sms-webhook-service:8003',
+    target: SMS_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: { '^/api/sms': '/sms' },
+    logLevel: 'debug',
   })
 );
 
-// --- FALLBACK: Serve index.html for any unknown route (SPA support) ---
+// --- Fallback: serve index.html for any unknown route (SPA support) ---
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`Gateway running on port ${PORT}`);
+  console.log(`Verification proxy → ${VERIFICATION_SERVICE_URL}`);
+  console.log(`Admin proxy → ${ADMIN_SERVICE_URL}`);
+  console.log(`SMS proxy → ${SMS_SERVICE_URL}`);
 });

@@ -8,7 +8,7 @@ services:
       - key: VERIFICATION_SERVICE_URL
         value: http://medverify-verification:8001
       - key: ADMIN_SERVICE_URL
-        value: http://medverify-admin:8002
+        value: http://medverify-admin:8001
       - key: SMS_WEBHOOK_URL
         value: http://medverify-sms:8001
     dockerContext: ./services/api-gateway

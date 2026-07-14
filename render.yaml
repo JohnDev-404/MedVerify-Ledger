@@ -6,11 +6,20 @@ services:
     plan: free
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        value: http://medverify-verification:8001
+        fromService:
+          type: web
+          name: medverify-verification
+          property: hostport   # This gives "internal-hostname:port"
       - key: ADMIN_SERVICE_URL
-        value: http://medverify-admin:8001
+        fromService:
+          type: web
+          name: medverify-admin
+          property: hostport
       - key: SMS_WEBHOOK_URL
-        value: http://medverify-sms:8001
+        fromService:
+          type: web
+          name: medverify-sms
+          property: hostport
     dockerContext: ./services/api-gateway
     dockerfilePath: ./services/api-gateway/Dockerfile
 
@@ -75,16 +84,20 @@ services:
     dockerfilePath: ./services/admin-service/Dockerfile
 
   # --- 4. SMS Webhook Service ---
+  # --- 4. SMS Webhook Service ---
   - type: web
     name: medverify-sms
     runtime: docker
     plan: free
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        value: http://medverify-verification:8001
+        fromService:
+          type: web
+          name: medverify-verification
+          property: hostport
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
-
+    
 # --- PostgreSQL Database (Defined OUTSIDE services) ---
 databases:
   - name: medverify-db

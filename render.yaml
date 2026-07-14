@@ -2,15 +2,15 @@ services:
   # --- 1. API Gateway Service ---
   - type: web
     name: medverify-gateway
-    region: oregon
     runtime: docker
     plan: free
+    region: oregon   # <-- added region
     envVars:
       - key: VERIFICATION_SERVICE_URL
         fromService:
           type: web
           name: medverify-verification
-          property: hostport   # This gives "internal-hostname:port"
+          property: hostport
       - key: ADMIN_SERVICE_URL
         fromService:
           type: web
@@ -27,9 +27,9 @@ services:
   # --- 2. Verification Service ---
   - type: web
     name: medverify-verification
-    region: oregon
     runtime: docker
     plan: free
+    region: oregon   # <-- added region
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -57,9 +57,9 @@ services:
   # --- 3. Admin Service ---
   - type: web
     name: medverify-admin
-    region: oregon
     runtime: docker
     plan: free
+    region: oregon   # <-- added region
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -87,12 +87,11 @@ services:
     dockerfilePath: ./services/admin-service/Dockerfile
 
   # --- 4. SMS Webhook Service ---
-  # --- 4. SMS Webhook Service ---
   - type: web
     name: medverify-sms
-    region: oregon
     runtime: docker
     plan: free
+    region: oregon   # <-- added region
     envVars:
       - key: VERIFICATION_SERVICE_URL
         fromService:
@@ -102,9 +101,10 @@ services:
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
 
-# --- PostgreSQL Database (Defined OUTSIDE services) ---
+# --- PostgreSQL Database ---
 databases:
   - name: medverify-db
     plan: free
-    databaseName: medverify      # Optional: default DB name
-    user: medverify_user         # Optional: default username
+    region: oregon   # <-- add region for DB as well (optional but recommended)
+    databaseName: medverify
+    user: medverify_user

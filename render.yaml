@@ -4,23 +4,14 @@ services:
     name: medverify-gateway
     runtime: docker
     plan: free
-    region: oregon   # <-- added region
+    region: oregon
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        fromService:
-          type: web
-          name: medverify-verification
-          property: hostport
+        value: https://medverify-verification.onrender.com
       - key: ADMIN_SERVICE_URL
-        fromService:
-          type: web
-          name: medverify-admin
-          property: hostport
+        value: https://medverify-admin.onrender.com
       - key: SMS_WEBHOOK_URL
-        fromService:
-          type: web
-          name: medverify-sms
-          property: hostport
+        value: https://medverify-sms.onrender.com
     dockerContext: ./services/api-gateway
     dockerfilePath: ./services/api-gateway/Dockerfile
 

@@ -13,28 +13,36 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Frontend Routes ---
+// Login page
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// Admin dashboard (main admin page)
 app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Admin dashboard (redirect target from login)
+app.get('/admin-dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // --- Helper: ensure URL has protocol ---
 function buildTarget(url) {
   if (!url) return null;
+  // If it already has a protocol, return as-is
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
-  return `http://${url}`;
+  // Otherwise, default to https (Render uses HTTPS)
+  return `https://${url}`;
 }
 
 // --- Proxy Routes (configured via environment variables) ---
-// Each variable is declared ONCE using buildTarget()
-const VERIFICATION_SERVICE_URL = buildTarget(process.env.VERIFICATION_SERVICE_URL) || 'http://verification-service:8001';
-const ADMIN_SERVICE_URL = buildTarget(process.env.ADMIN_SERVICE_URL) || 'http://admin-service:8002';
-const SMS_SERVICE_URL = buildTarget(process.env.SMS_WEBHOOK_URL) || 'http://sms-webhook-service:8003';
+const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'http://verification-service:8001';
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'http://admin-service:8002';
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'http://sms-webhook-service:8003';
 
 app.use(
   '/api/verify',

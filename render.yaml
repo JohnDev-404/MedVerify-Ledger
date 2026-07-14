@@ -2,6 +2,7 @@ services:
   # --- 1. API Gateway Service ---
   - type: web
     name: medverify-gateway
+    region: oregon
     runtime: docker
     plan: free
     envVars:
@@ -26,6 +27,7 @@ services:
   # --- 2. Verification Service ---
   - type: web
     name: medverify-verification
+    region: oregon
     runtime: docker
     plan: free
     envVars:
@@ -55,6 +57,7 @@ services:
   # --- 3. Admin Service ---
   - type: web
     name: medverify-admin
+    region: oregon
     runtime: docker
     plan: free
     envVars:
@@ -87,6 +90,7 @@ services:
   # --- 4. SMS Webhook Service ---
   - type: web
     name: medverify-sms
+    region: oregon
     runtime: docker
     plan: free
     envVars:
@@ -97,7 +101,7 @@ services:
           property: hostport
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
-    
+
 # --- PostgreSQL Database (Defined OUTSIDE services) ---
 databases:
   - name: medverify-db

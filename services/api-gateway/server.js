@@ -61,6 +61,18 @@ app.use(
   })
 );
 
+function buildTarget(url) {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  return `http://${url}`;
+}
+
+const VERIFICATION_SERVICE_URL = buildTarget(process.env.VERIFICATION_SERVICE_URL) || 'http://verification-service:8001';
+const ADMIN_SERVICE_URL = buildTarget(process.env.ADMIN_SERVICE_URL) || 'http://admin-service:8002';
+const SMS_SERVICE_URL = buildTarget(process.env.SMS_WEBHOOK_URL) || 'http://sms-webhook-service:8003';
+
 // --- Fallback: serve index.html for any unknown route (SPA support) ---
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

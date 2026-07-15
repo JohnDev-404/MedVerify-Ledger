@@ -82,7 +82,8 @@
     <div class="form-group">
       <label for="apiKey">API Key (required for all actions)</label>
       <div class="api-key-input">
-        <input type="password" id="apiKey" placeholder="Enter admin API key..." value="secret-admin-key">
+        <!-- CHANGE 1: default value set to the actual key -->
+        <input type="password" id="apiKey" placeholder="Enter admin API key..." value=":E4-Tz9CpVvqT:4">
         <button class="btn" onclick="setApiKey()">Save</button>
       </div>
     </div>
@@ -114,7 +115,8 @@
 
 <script>
   // -------- API Key Management --------
-  let apiKey = localStorage.getItem('medVerifyApiKey') || 'secret-admin-key';
+  // CHANGE 2: fallback default changed to the correct key
+  let apiKey = localStorage.getItem('medVerifyApiKey') || ':E4-Tz9CpVvqT:4';
   document.getElementById('apiKey').value = apiKey;
 
   function setApiKey() {

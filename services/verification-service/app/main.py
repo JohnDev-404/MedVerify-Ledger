@@ -8,8 +8,19 @@ app = FastAPI(title="Verification Service")
 @app.on_event("startup")
 async def startup():
     await init_db_pool()
-    await create_tables()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        # Create table if not exists
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS verified_batches (
+                batch_number TEXT PRIMARY KEY
+            )
+        """)
 
+        await conn.execute("""
+                           INSERT INTO verified_batches (batch_number)
+                           VALUES ('ABC123') ON CONFLICT (batch_number) DO NOTHING
+                           """)
 @app.post("/verify", response_model=VerifyResponse)
 async def verify_batch(req: VerifyRequest):
     pool = await get_pool()

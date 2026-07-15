@@ -85,13 +85,13 @@ services:
     region: oregon
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        value: http://medverify-verification:10000   # hardcoded internal URL
+        value: https://medverify-verification.onrender.com   # ✅ public URL
       - key: TWILIO_ACCOUNT_SID
-        value: "AC68db0862d4544e69c27383b1e7d04588"                   
+        value: "YOUR_TWILIO_SID"
       - key: TWILIO_AUTH_TOKEN
-        value: "95cdc84f7892668fcfbde0660ae9155c"
+        value: "YOUR_TWILIO_TOKEN"
       - key: TWILIO_PHONE_NUMBER
-        value: "+12604753811"                        # your Twilio number
+        value: "+12604753811"
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
 

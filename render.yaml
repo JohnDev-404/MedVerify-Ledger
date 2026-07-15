@@ -85,17 +85,13 @@ services:
     region: oregon
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        fromService:
-          type: web
-          name: medverify-verification
-          property: hostport
-      # ---------- ADD THESE TWILIO VARS ----------
+        value: http://medverify-verification:10000   # hardcoded internal URL
       - key: TWILIO_ACCOUNT_SID
-        value: "YOUR_TWILIO_ACCOUNT_SID"    # REPLACE with your SID
+        value: "AC68db0862d4544e69c27383b1e7d04588"                   
       - key: TWILIO_AUTH_TOKEN
-        value: "YOUR_TWILIO_AUTH_TOKEN"     # REPLACE with your Auth Token
+        value: "95cdc84f7892668fcfbde0660ae9155c"
       - key: TWILIO_PHONE_NUMBER
-        value: "+1234567890"               # REPLACE with your Twilio number
+        value: "+12604753811"                        # your Twilio number
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
 

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from app.models import VerifyRequest, VerifyResponse
-from app.database import init_db_pool, get_pool
+from app.database import init_db_pool, get_pool, create_tables
 
 app = FastAPI(title="Verification Service")
 
@@ -8,7 +8,7 @@ app = FastAPI(title="Verification Service")
 @app.on_event("startup")
 async def startup():
     await init_db_pool()
-
+    await create_tables()
 
 @app.post("/verify", response_model=VerifyResponse)
 async def verify_batch(req: VerifyRequest):
@@ -26,3 +26,4 @@ async def verify_batch(req: VerifyRequest):
         return VerifyResponse(status="authentic")
     else:
         return VerifyResponse(status="fake")
+

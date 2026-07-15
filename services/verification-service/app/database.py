@@ -26,3 +26,16 @@ async def init_db_pool():
 
 async def get_pool():
     return pool
+
+async def create_tables():
+    """Create the verified_batches table if it doesn't exist."""
+    pool = await get_pool()
+    if pool is None:
+        return
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS verified_batches (
+                batch_number TEXT PRIMARY KEY,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)

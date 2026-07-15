@@ -14,12 +14,18 @@ async def startup():
     await init_db_pool()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # Create a separate table for admin data
+        # Create the admin table (for listing)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_batches (
                 id SERIAL PRIMARY KEY,
                 batch_number TEXT UNIQUE NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Ensure the verification table exists (safe to call even if already there)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS verified_batches (
+                batch_number TEXT PRIMARY KEY
             )
         """)
 
@@ -35,8 +41,14 @@ async def add_batch(batch: BatchCreate, _: bool = Depends(verify_api_key)):
         raise HTTPException(503, "Database not ready")
     async with pool.acquire() as conn:
         try:
+            # Insert into admin_batches (for listing)
             await conn.execute(
                 "INSERT INTO admin_batches (batch_number) VALUES ($1)",
+                batch.batch_number
+            )
+            # Also insert into verified_batches so the Gateway sees it as authentic
+            await conn.execute(
+                "INSERT INTO verified_batches (batch_number) VALUES ($1) ON CONFLICT (batch_number) DO NOTHING",
                 batch.batch_number
             )
         except asyncpg.exceptions.UniqueViolationError:

@@ -3,7 +3,7 @@ from app.models import BatchCreate, BatchResponse
 from app.database import init_db_pool, get_pool
 import os
 from datetime import datetime
-import asyncpg                     # needed for UniqueViolationError
+import asyncpg
 
 API_KEY = os.getenv("ADMIN_API_KEY", "secret-admin-key")
 
@@ -12,11 +12,11 @@ app = FastAPI(title="Admin Service")
 @app.on_event("startup")
 async def startup():
     await init_db_pool()
-    # Create the table if it doesn't exist
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Create a separate table for admin data
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS verified_batches (
+            CREATE TABLE IF NOT EXISTS admin_batches (
                 id SERIAL PRIMARY KEY,
                 batch_number TEXT UNIQUE NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -36,7 +36,7 @@ async def add_batch(batch: BatchCreate, _: bool = Depends(verify_api_key)):
     async with pool.acquire() as conn:
         try:
             await conn.execute(
-                "INSERT INTO verified_batches (batch_number) VALUES ($1)",
+                "INSERT INTO admin_batches (batch_number) VALUES ($1)",
                 batch.batch_number
             )
         except asyncpg.exceptions.UniqueViolationError:
@@ -50,7 +50,7 @@ async def list_batches(_: bool = Depends(verify_api_key)):
         raise HTTPException(503, "Database not ready")
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT id, batch_number, created_at FROM verified_batches ORDER BY created_at DESC"
+            "SELECT id, batch_number, created_at FROM admin_batches ORDER BY created_at DESC"
         )
     return [
         BatchResponse(

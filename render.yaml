@@ -20,7 +20,7 @@ services:
     name: medverify-verification
     runtime: docker
     plan: free
-    region: oregon   # <-- added region
+    region: oregon
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -50,7 +50,7 @@ services:
     name: medverify-admin
     runtime: docker
     plan: free
-    region: oregon   # <-- added region
+    region: oregon
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -82,13 +82,20 @@ services:
     name: medverify-sms
     runtime: docker
     plan: free
-    region: oregon   # <-- added region
+    region: oregon
     envVars:
       - key: VERIFICATION_SERVICE_URL
         fromService:
           type: web
           name: medverify-verification
           property: hostport
+      # ---------- ADD THESE TWILIO VARS ----------
+      - key: TWILIO_ACCOUNT_SID
+        value: "YOUR_TWILIO_ACCOUNT_SID"    # REPLACE with your SID
+      - key: TWILIO_AUTH_TOKEN
+        value: "YOUR_TWILIO_AUTH_TOKEN"     # REPLACE with your Auth Token
+      - key: TWILIO_PHONE_NUMBER
+        value: "+1234567890"               # REPLACE with your Twilio number
     dockerContext: ./services/sms-webhook-service
     dockerfilePath: ./services/sms-webhook-service/Dockerfile
 
@@ -96,6 +103,6 @@ services:
 databases:
   - name: medverify-db
     plan: free
-    region: oregon   # <-- add region for DB as well (optional but recommended)
+    region: oregon
     databaseName: medverify
     user: medverify_user

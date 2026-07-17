@@ -20,7 +20,13 @@ app.get('/login', (req, res) => {
 
 // Admin dashboard (main admin page)
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    const isLoggedIn = req.query.loggedIn === 'true' || req.cookies?.isLoggedIn === 'true';
+
+    if (isLoggedIn) {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    } else {
+        res.redirect('/login')
+    }
 });
 
 // Admin dashboard (redirect target from login)

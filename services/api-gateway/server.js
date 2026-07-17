@@ -84,6 +84,15 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/api/admin': '' },
     logLevel: 'debug',
+      on: {
+      error: (err, req, res) => {
+        console.error('Admin Proxy Error:', err.message);
+        // Prevent the server from crashing
+        if (!res.headersSent) {
+          res.status(504).json({ error: 'Admin service temporarily unavailable' });
+        }
+      }
+    }
   })
 );
 

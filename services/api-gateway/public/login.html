@@ -74,7 +74,7 @@
 
   <div class="form-group">
     <label for="apiKeyInput">API Key</label>
-    <input type="password" id="apiKeyInput" placeholder="Enter your admin API key..." value=":E4-Tz9CpVvqT:4">
+    <input type="password" id="apiKeyInput" placeholder="Enter your admin API key..." value="">
   </div>
   <button class="btn" id="loginBtn">Login</button>
 </div>
@@ -106,8 +106,8 @@
 
       // Save key to localStorage for API calls
       localStorage.setItem('medVerifyApiKey', key);
-      // Redirect to admin dashboard
-      window.location.href = '/admin';
+      // Redirect to admin dashboard WITH the query parameter
+      window.location.href = '/admin?loggedIn=true';
     } catch (err) {
       errorEl.textContent = 'Network error. Please try again.';
       errorEl.classList.add('show');

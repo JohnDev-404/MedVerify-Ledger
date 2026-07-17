@@ -2,7 +2,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const cookieParser = require('cookie-parser');   // <-- new
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -37,17 +37,14 @@ app.post('/login', (req, res) => {
     httpOnly: true,
     sameSite: 'lax',
   });
-  // Also store the key in a secure httpOnly cookie? Not needed; localStorage handles it.
   return res.json({ success: true });
 });
 
 // --- Frontend Routes ---
-// Login page (GET)
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Admin dashboard (GET) – check cookie
 app.get('/admin', (req, res) => {
   if (req.cookies.adminLoggedIn === 'true') {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
@@ -77,6 +74,14 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/api/verify': '/verify' },
     logLevel: 'debug',
+    on: {
+      error: (err, req, res) => {
+        console.error('Proxy /api/verify error:', err.message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Verification service unavailable' });
+        }
+      }
+    }
   })
 );
 
@@ -87,6 +92,14 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/api/admin': '' },
     logLevel: 'debug',
+    on: {
+      error: (err, req, res) => {
+        console.error('Proxy /api/admin error:', err.message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Admin service unavailable' });
+        }
+      }
+    }
   })
 );
 
@@ -97,6 +110,14 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/api/sms': '/sms' },
     logLevel: 'debug',
+    on: {
+      error: (err, req, res) => {
+        console.error('Proxy /api/sms error:', err.message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'SMS service unavailable' });
+        }
+      }
+    }
   })
 );
 

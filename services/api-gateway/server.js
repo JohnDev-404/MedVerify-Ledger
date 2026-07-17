@@ -2,7 +2,6 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const cookieParser = require('cookie-parser');   // <-- new
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -10,58 +9,39 @@ const PORT = process.env.PORT || 8000;
 // Enable CORS
 app.use(cors());
 
-// Parse JSON & URL-encoded bodies (for login POST)
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Parse cookies
-app.use(cookieParser());
-
 // Serve static files from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Login endpoint (POST) ---
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ':E4-Tz9CpVvqT:4';
-
-app.post('/login', (req, res) => {
-  const { apiKey } = req.body;
-  if (!apiKey) {
-    return res.status(400).json({ error: 'API key required' });
-  }
-  if (apiKey !== ADMIN_API_KEY) {
-    return res.status(401).json({ error: 'Invalid API key' });
-  }
-  // Set a cookie that expires in 1 hour
-  res.cookie('adminLoggedIn', 'true', {
-    maxAge: 60 * 60 * 1000, // 1 hour
-    httpOnly: true,
-    sameSite: 'lax',
-  });
-  // Also store the key in a secure httpOnly cookie? Not needed; localStorage handles it.
-  return res.json({ success: true });
-});
-
 // --- Frontend Routes ---
-// Login page (GET)
+// Login page
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Admin dashboard (GET) – check cookie
+// Admin dashboard (main admin page)
 app.get('/admin', (req, res) => {
-  if (req.cookies.adminLoggedIn === 'true') {
+    const isLoggedIn = req.query.loggedIn === 'true' || req.cookies?.isLoggedIn === 'true';
+
+    if (isLoggedIn) {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-  } else {
-    res.redirect('/login');
-  }
+    } else {
+        res.redirect('/login')
+    }
+});
+
+// Admin dashboard (redirect target from login)
+app.get('/admin-dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // --- Helper: ensure URL has protocol ---
 function buildTarget(url) {
   if (!url) return null;
+  // If it already has a protocol, return as-is
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
+  // Otherwise, default to https (Render uses HTTPS)
   return `https://${url}`;
 }
 

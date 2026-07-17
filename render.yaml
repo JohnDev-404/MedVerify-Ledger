@@ -9,7 +9,7 @@ services:
       - key: VERIFICATION_SERVICE_URL
         value: https://medverify-verification.onrender.com
       - key: ADMIN_SERVICE_URL
-        value: https://medverify-admin.onrender.com
+        value: http://medverify-admin:10000
       - key: SMS_WEBHOOK_URL
         value: https://medverify-sms.onrender.com
     dockerContext: ./services/api-gateway

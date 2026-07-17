@@ -68,19 +68,19 @@
 <body>
 <div class="login-card">
   <h1>Admin <span>Login</span></h1>
-  <p>Enter your credentials to access the dashboard.</p>
+  <p>Enter your API key to access the dashboard.</p>
 
   <div class="error" id="loginError">Invalid API key. Please try again.</div>
 
   <div class="form-group">
     <label for="apiKeyInput">API Key</label>
-    <input type="password" id="apiKeyInput" placeholder="Enter your admin API key...">
+    <input type="password" id="apiKeyInput" placeholder="Enter your admin API key..." value=":E4-Tz9CpVvqT:4">
   </div>
   <button class="btn" id="loginBtn">Login</button>
 </div>
 
 <script>
-  document.getElementById('loginBtn').addEventListener('click', () => {
+  document.getElementById('loginBtn').addEventListener('click', async () => {
     const key = document.getElementById('apiKeyInput').value.trim();
     const errorEl = document.getElementById('loginError');
 
@@ -90,9 +90,29 @@
       return;
     }
 
-    // Save the key and redirect
-    localStorage.setItem('medVerifyApiKey', key);
-window.location.href = '/admin';  });
+    try {
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        errorEl.textContent = data.error || 'Invalid API key.';
+        errorEl.classList.add('show');
+        return;
+      }
+
+      // Save key to localStorage for API calls
+      localStorage.setItem('medVerifyApiKey', key);
+      // Redirect to admin dashboard
+      window.location.href = '/admin';
+    } catch (err) {
+      errorEl.textContent = 'Network error. Please try again.';
+      errorEl.classList.add('show');
+    }
+  });
 
   // Enter key support
   document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {

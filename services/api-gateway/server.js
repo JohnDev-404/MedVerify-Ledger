@@ -3,14 +3,20 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
 
-// --- Global error handlers (last resort) ---
+// --- GLOBAL ERROR HANDLERS (prevents crashes) ---
 process.on('uncaughtException', (err) => {
   console.error('🔥 UNCAUGHT EXCEPTION – keeping server alive:', err.message);
-  // Do not exit – keep the process running
+  // Do NOT exit – keep the process running
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('🔥 UNHANDLED REJECTION – keeping server alive:', reason);
+});
+
+// --- Also handle SIGTERM (Render sends this on deploy) ---
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM – shutting down gracefully');
+  process.exit(0);
 });
 
 const app = express();
@@ -42,39 +48,37 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Proxy targets (use internal URLs) ---
-const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'http://medverify-verification:10000';
-const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'http://medverify-admin:10000';
-const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'http://medverify-sms:10000';
-
-// --- Helper: create a proxy with robust error handling ---
+// --- Helper to create a proxy with robust error handling ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
-  const proxy = createProxyMiddleware({
+  return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
     timeout: 60000,          // 60 seconds
     proxyTimeout: 60000,
     logLevel: 'debug',
-  });
-
-  // Attach an error listener directly to the proxy
-  proxy.on('error', (err, req, res) => {
-    console.error(`🚨 Proxy ${routeName} error:`, err.message);
-    if (!res.headersSent) {
-      res.status(504).json({ error: `${routeName} service unavailable` });
+    on: {
+      error: (err, req, res) => {
+        console.error(`🚨 Proxy ${routeName} error:`, err.message);
+        if (!res.headersSent) {
+          res.status(504).json({ error: `${routeName} service temporarily unavailable` });
+        }
+      },
+      proxyReq: (proxyReq, req) => {
+        console.log(`➡️ Proxying ${req.method} ${req.url} → ${target}`);
+      },
+      proxyRes: (proxyRes, req) => {
+        console.log(`⬅️ Proxy ${routeName} response: ${proxyRes.statusCode}`);
+      }
     }
   });
-
-  // Also catch any other events that might cause crashes
-  proxy.on('close', () => {
-    console.log(`Proxy ${routeName} closed`);
-  });
-
-  return proxy;
 }
 
-// --- Apply proxies ---
+// --- Proxy Routes (using public URLs from environment) ---
+const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
+
 app.use('/api/verify', createProxiedMiddleware(VERIFICATION_SERVICE_URL, { '^/api/verify': '/verify' }, 'Verification'));
 app.use('/api/admin', createProxiedMiddleware(ADMIN_SERVICE_URL, { '^/api/admin': '' }, 'Admin'));
 app.use('/api/sms', createProxiedMiddleware(SMS_SERVICE_URL, { '^/api/sms': '/sms' }, 'SMS'));
@@ -83,7 +87,7 @@ app.use('/api/sms', createProxiedMiddleware(SMS_SERVICE_URL, { '^/api/sms': '/sm
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
-  console.log(`Gateway running on port ${PORT}`);
+  console.log(`✅ Gateway running on port ${PORT}`);
   console.log(`Verification proxy → ${VERIFICATION_SERVICE_URL}`);
   console.log(`Admin proxy → ${ADMIN_SERVICE_URL}`);
   console.log(`SMS proxy → ${SMS_SERVICE_URL}`);

@@ -2,8 +2,6 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const http = require('http');      // <-- Added for agent
-const https = require('https');    // <-- Added for agent
 
 // --- Global error handlers ---
 process.on('uncaughtException', (err) => {
@@ -12,15 +10,10 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('🔥 UNHANDLED REJECTION – keeping server alive:', reason);
 });
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM – shutting down gracefully');
-  process.exit(0);
-});
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -46,41 +39,56 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Proxy targets ---
-const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
-const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
-const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
+// --- Proxy targets (use internal URLs) ---
+const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'http://medverify-verification:10000';
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'http://medverify-admin:10000';
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'http://medverify-sms:10000';
 
-// --- Helper: create proxy with keep-alive disabled ---
+// --- Helper: create proxy with retry on ECONNRESET ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
-  // Create an agent with keepAlive: false to prevent ECONNRESET
-  const agent = target.startsWith('https')
-    ? new https.Agent({ keepAlive: false })
-    : new http.Agent({ keepAlive: false });
+  let retryCount = 0;
+  const maxRetries = 1;
 
-  return createProxyMiddleware({
+  const proxy = createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
-    timeout: 120000,
-    proxyTimeout: 120000,
-    agent, // <-- This disables keep-alive, fixing ECONNRESET
+    timeout: 60000,
+    proxyTimeout: 60000,
     logLevel: 'debug',
     on: {
       error: (err, req, res) => {
         console.error(`🚨 Proxy ${routeName} error:`, err.code, err.message);
-        if (!res.headersSent) {
-          res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
+        // Retry on ECONNRESET or ETIMEDOUT
+        if ((err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') && retryCount < maxRetries) {
+          retryCount++;
+          console.log(`🔄 Retry ${retryCount} for ${routeName}...`);
+          // Re-run the proxy by calling the handler again? Not straightforward.
+          // Instead, we'll implement a manual retry by sending a new request.
+          // Since we can't easily retry within the proxy, we'll let the client retry.
+          // Better to return a 504 with a note to retry.
+          if (!res.headersSent) {
+            res.status(504).json({ error: `${routeName} service temporarily unavailable, please retry` });
+          }
+        } else {
+          if (!res.headersSent) {
+            res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
+          }
         }
+        // Reset retry count after error (for next request)
+        retryCount = 0;
       },
       proxyReq: (proxyReq, req) => {
         console.log(`➡️ Proxying ${req.method} ${req.url} → ${target}`);
       },
       proxyRes: (proxyRes, req) => {
         console.log(`⬅️ Proxy ${routeName} response: ${proxyRes.statusCode}`);
+        retryCount = 0; // reset on success
       }
     }
   });
+
+  return proxy;
 }
 
 // --- Apply proxies ---

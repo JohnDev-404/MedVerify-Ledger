@@ -39,17 +39,14 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Proxy targets (use internal URLs) ---
-const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'http://medverify-verification:10000';
-const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'http://medverify-admin:10000';
-const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'http://medverify-sms:10000';
+// --- Proxy targets (public URLs) ---
+const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Helper: create proxy with retry on ECONNRESET ---
+// --- Helper: create proxy with robust error handling ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
-  let retryCount = 0;
-  const maxRetries = 1;
-
-  const proxy = createProxyMiddleware({
+  return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
@@ -59,36 +56,18 @@ function createProxiedMiddleware(target, pathRewrite, routeName) {
     on: {
       error: (err, req, res) => {
         console.error(`🚨 Proxy ${routeName} error:`, err.code, err.message);
-        // Retry on ECONNRESET or ETIMEDOUT
-        if ((err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') && retryCount < maxRetries) {
-          retryCount++;
-          console.log(`🔄 Retry ${retryCount} for ${routeName}...`);
-          // Re-run the proxy by calling the handler again? Not straightforward.
-          // Instead, we'll implement a manual retry by sending a new request.
-          // Since we can't easily retry within the proxy, we'll let the client retry.
-          // Better to return a 504 with a note to retry.
-          if (!res.headersSent) {
-            res.status(504).json({ error: `${routeName} service temporarily unavailable, please retry` });
-          }
-        } else {
-          if (!res.headersSent) {
-            res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
-          }
+        if (!res.headersSent) {
+          res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
         }
-        // Reset retry count after error (for next request)
-        retryCount = 0;
       },
       proxyReq: (proxyReq, req) => {
         console.log(`➡️ Proxying ${req.method} ${req.url} → ${target}`);
       },
       proxyRes: (proxyRes, req) => {
         console.log(`⬅️ Proxy ${routeName} response: ${proxyRes.statusCode}`);
-        retryCount = 0; // reset on success
       }
     }
   });
-
-  return proxy;
 }
 
 // --- Apply proxies ---

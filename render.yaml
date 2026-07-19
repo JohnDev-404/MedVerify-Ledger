@@ -6,12 +6,12 @@ services:
     plan: free
     region: oregon
     envVars:
-    - key: VERIFICATION_SERVICE_URL
-      value: http://medverify-verification:10000
-    - key: ADMIN_SERVICE_URL
-      value: http://medverify-admin:10000
-    - key: SMS_WEBHOOK_URL
-      value: http://medverify-sms:10000
+      - key: VERIFICATION_SERVICE_URL
+        value: https://medverify-verification.onrender.com
+      - key: ADMIN_SERVICE_URL
+        value: https://medverify-admin.onrender.com
+      - key: SMS_WEBHOOK_URL
+        value: https://medverify-sms.onrender.com
     dockerContext: ./services/api-gateway
     dockerfilePath: ./services/api-gateway/Dockerfile
 
@@ -85,7 +85,7 @@ services:
     region: oregon
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        value: https://medverify-verification.onrender.com   # ✅ public URL
+        value: https://medverify-verification.onrender.com
       - key: TWILIO_ACCOUNT_SID
         value: "YOUR_TWILIO_SID"
       - key: TWILIO_AUTH_TOKEN

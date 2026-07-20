@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
 
-// --- Global error handlers (prevents SIGTERM crashes) ---
+// --- Global error handlers (safety net) ---
 process.on('uncaughtException', (err) => {
   console.error('🔥 UNCAUGHT EXCEPTION – keeping server alive:', err.message);
 });
@@ -44,7 +44,7 @@ const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https:
 const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
 const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Helper: create proxy with robust error handling (no custom agent) ---
+// --- Helper: create proxy with robust error handling ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
   return createProxyMiddleware({
     target,
@@ -54,13 +54,21 @@ function createProxiedMiddleware(target, pathRewrite, routeName) {
     proxyTimeout: 60000,
     logLevel: 'debug',
     on: {
+      // Catch proxy-level errors
       error: (err, req, res) => {
         console.error(`🚨 Proxy ${routeName} error:`, err.code, err.message);
         if (!res.headersSent) {
           res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
         }
       },
-      proxyReq: (proxyReq, req) => {
+      // --- CRITICAL: catch socket errors on the proxy request ---
+      proxyReq: (proxyReq, req, res) => {
+        proxyReq.on('error', (err) => {
+          console.error(`🚨 Proxy ${routeName} socket error:`, err.code, err.message);
+          if (!res.headersSent) {
+            res.status(504).json({ error: `${routeName} connection reset (${err.code})` });
+          }
+        });
         console.log(`➡️ Proxying ${req.method} ${req.url} → ${target}`);
       },
       proxyRes: (proxyRes, req) => {

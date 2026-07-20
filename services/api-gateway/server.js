@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const axios = require('axios'); // <-- Add this
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -44,9 +44,12 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Direct handler for /api/verify (bypasses proxy) ---
+// --- Service URLs ---
 const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
+const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
+// --- Direct handler for /api/verify (bypass proxy) ---
 app.post('/api/verify', async (req, res) => {
   try {
     const response = await axios.post(`${VERIFICATION_SERVICE_URL}/verify`, req.body, {
@@ -64,31 +67,54 @@ app.post('/api/verify', async (req, res) => {
   }
 });
 
-// --- Proxy routes for admin and SMS (keep these) ---
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
-const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
-
-app.use(
-  '/api/admin',
-  createProxyMiddleware({
-    target: ADMIN_SERVICE_URL,
-    changeOrigin: true,
-    pathRewrite: { '^/api/admin': '' },
-    timeout: 60000,
-    proxyTimeout: 60000,
-    logLevel: 'debug',
-    on: {
-      error: (err, req, res) => {
-        console.error('Admin proxy error:', err.message);
-        if (!res.headersSent) {
-          res.status(504).json({ error: 'Admin service unavailable' });
-        }
-      }
+// --- Direct handlers for /api/admin/batches (bypass proxy) ---
+app.get('/api/admin/batches', async (req, res) => {
+  try {
+    const apiKey = req.headers['api-key'];
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
     }
-  })
-);
+    const response = await axios.get(`${ADMIN_SERVICE_URL}/batches`, {
+      headers: { 'api-key': apiKey },
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Admin GET error:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(504).json({ error: 'Admin service unavailable' });
+    }
+  }
+});
 
+app.post('/api/admin/batches', async (req, res) => {
+  try {
+    const apiKey = req.headers['api-key'];
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
+    }
+    const response = await axios.post(`${ADMIN_SERVICE_URL}/batches`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey,
+      },
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Admin POST error:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(504).json({ error: 'Admin service unavailable' });
+    }
+  }
+});
+
+// --- Proxy for SMS (only if needed, keep as proxy) ---
+const { createProxyMiddleware } = require('http-proxy-middleware');
 app.use(
   '/api/sms',
   createProxyMiddleware({
@@ -115,6 +141,6 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.listen(PORT, () => {
   console.log(`✅ Gateway running on port ${PORT}`);
   console.log(`Verification service → ${VERIFICATION_SERVICE_URL}`);
-  console.log(`Admin proxy → ${ADMIN_SERVICE_URL}`);
+  console.log(`Admin service → ${ADMIN_SERVICE_URL}`);
   console.log(`SMS proxy → ${SMS_SERVICE_URL}`);
 });

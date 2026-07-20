@@ -2,6 +2,8 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 
 // --- Global error handlers (safety net) ---
 process.on('uncaughtException', (err) => {
@@ -18,6 +20,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- Health check endpoint ---
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // --- Login endpoint ---
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ':E4-Tz9CpVvqT:4';
@@ -46,23 +53,28 @@ const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.on
 
 // --- Helper: create proxy with robust error handling ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
+  // Disable keep-alive to prevent ECONNRESET
+  const agent = target.startsWith('https')
+    ? new https.Agent({ keepAlive: false })
+    : new http.Agent({ keepAlive: false });
+
   return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
     timeout: 60000,
     proxyTimeout: 60000,
+    agent,
     logLevel: 'debug',
     on: {
-      // Catch proxy-level errors
       error: (err, req, res) => {
         console.error(`🚨 Proxy ${routeName} error:`, err.code, err.message);
         if (!res.headersSent) {
           res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
         }
       },
-      // --- CRITICAL: catch socket errors on the proxy request ---
       proxyReq: (proxyReq, req, res) => {
+        // Catch socket errors
         proxyReq.on('error', (err) => {
           console.error(`🚨 Proxy ${routeName} socket error:`, err.code, err.message);
           if (!res.headersSent) {

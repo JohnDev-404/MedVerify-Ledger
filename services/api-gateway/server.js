@@ -2,10 +2,8 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const http = require('http');
-const https = require('https');
 
-// --- Global error handlers (last resort) ---
+// --- Global error handlers (prevents SIGTERM crashes) ---
 process.on('uncaughtException', (err) => {
   console.error('🔥 UNCAUGHT EXCEPTION – keeping server alive:', err.message);
 });
@@ -46,20 +44,14 @@ const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https:
 const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
 const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Helper: create proxy with robust error handling ---
+// --- Helper: create proxy with robust error handling (no custom agent) ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
-  // Disable keep-alive to prevent ECONNRESET
-  const agent = target.startsWith('https')
-    ? new https.Agent({ keepAlive: false })
-    : new http.Agent({ keepAlive: false });
-
   return createProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
     timeout: 60000,
     proxyTimeout: 60000,
-    agent, // crucial fix
     logLevel: 'debug',
     on: {
       error: (err, req, res) => {

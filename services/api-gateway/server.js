@@ -1,9 +1,10 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 const path = require('path');
-const http = require('http');
-const https = require('https');
+const axios = require('axios'); // <-- Add this
+
+const app = express();
+const PORT = process.env.PORT || 8000;
 
 // --- Global error handlers ---
 process.on('uncaughtException', (err) => {
@@ -12,9 +13,6 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('🔥 UNHANDLED REJECTION – keeping server alive:', reason);
 });
-
-const app = express();
-const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
@@ -46,61 +44,77 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Proxy targets ---
+// --- Direct handler for /api/verify (bypasses proxy) ---
 const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
+
+app.post('/api/verify', async (req, res) => {
+  try {
+    const response = await axios.post(`${VERIFICATION_SERVICE_URL}/verify`, req.body, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Verification service error:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(504).json({ error: 'Verification service unavailable' });
+    }
+  }
+});
+
+// --- Proxy routes for admin and SMS (keep these) ---
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
 const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Helper: create proxy with keep-alive disabled ---
-function createProxiedMiddleware(target, pathRewrite, routeName) {
-  // Create an agent that disables keep-alive
-  const agent = target.startsWith('https')
-    ? new https.Agent({ keepAlive: false })
-    : new http.Agent({ keepAlive: false });
-
-  return createProxyMiddleware({
-    target,
+app.use(
+  '/api/admin',
+  createProxyMiddleware({
+    target: ADMIN_SERVICE_URL,
     changeOrigin: true,
-    pathRewrite,
+    pathRewrite: { '^/api/admin': '' },
     timeout: 60000,
     proxyTimeout: 60000,
-    agent, // <-- This disables keep-alive
     logLevel: 'debug',
     on: {
       error: (err, req, res) => {
-        console.error(`🚨 Proxy ${routeName} error:`, err.code, err.message);
+        console.error('Admin proxy error:', err.message);
         if (!res.headersSent) {
-          res.status(504).json({ error: `${routeName} service unavailable (${err.code})` });
+          res.status(504).json({ error: 'Admin service unavailable' });
         }
-      },
-      proxyReq: (proxyReq, req, res) => {
-        // Catch socket errors
-        proxyReq.on('error', (err) => {
-          console.error(`🚨 Proxy ${routeName} socket error:`, err.code, err.message);
-          if (!res.headersSent) {
-            res.status(504).json({ error: `${routeName} connection reset (${err.code})` });
-          }
-        });
-        console.log(`➡️ Proxying ${req.method} ${req.url} → ${target}`);
-      },
-      proxyRes: (proxyRes, req) => {
-        console.log(`⬅️ Proxy ${routeName} response: ${proxyRes.statusCode}`);
       }
     }
-  });
-}
+  })
+);
 
-// --- Apply proxies ---
-app.use('/api/verify', createProxiedMiddleware(VERIFICATION_SERVICE_URL, { '^/api/verify': '/verify' }, 'Verification'));
-app.use('/api/admin', createProxiedMiddleware(ADMIN_SERVICE_URL, { '^/api/admin': '' }, 'Admin'));
-app.use('/api/sms', createProxiedMiddleware(SMS_SERVICE_URL, { '^/api/sms': '/sms' }, 'SMS'));
+app.use(
+  '/api/sms',
+  createProxyMiddleware({
+    target: SMS_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/api/sms': '/sms' },
+    timeout: 60000,
+    proxyTimeout: 60000,
+    logLevel: 'debug',
+    on: {
+      error: (err, req, res) => {
+        console.error('SMS proxy error:', err.message);
+        if (!res.headersSent) {
+          res.status(504).json({ error: 'SMS service unavailable' });
+        }
+      }
+    }
+  })
+);
 
 // --- Fallback ---
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => {
   console.log(`✅ Gateway running on port ${PORT}`);
-  console.log(`Verification proxy → ${VERIFICATION_SERVICE_URL}`);
+  console.log(`Verification service → ${VERIFICATION_SERVICE_URL}`);
   console.log(`Admin proxy → ${ADMIN_SERVICE_URL}`);
   console.log(`SMS proxy → ${SMS_SERVICE_URL}`);
 });

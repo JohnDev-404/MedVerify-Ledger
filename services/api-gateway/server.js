@@ -5,7 +5,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 
-// --- Global error handlers (safety net) ---
+// --- Global error handlers ---
 process.on('uncaughtException', (err) => {
   console.error('🔥 UNCAUGHT EXCEPTION – keeping server alive:', err.message);
 });
@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Health check endpoint ---
+// --- Health check ---
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -46,14 +46,14 @@ app.get('/admin', (req, res) => {
 });
 app.get('/admin-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// --- Proxy targets (public URLs) ---
+// --- Proxy targets ---
 const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https://medverify-verification.onrender.com';
 const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
 const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Helper: create proxy with robust error handling ---
+// --- Helper: create proxy with keep-alive disabled ---
 function createProxiedMiddleware(target, pathRewrite, routeName) {
-  // Disable keep-alive to prevent ECONNRESET
+  // Create an agent that disables keep-alive
   const agent = target.startsWith('https')
     ? new https.Agent({ keepAlive: false })
     : new http.Agent({ keepAlive: false });
@@ -64,7 +64,7 @@ function createProxiedMiddleware(target, pathRewrite, routeName) {
     pathRewrite,
     timeout: 60000,
     proxyTimeout: 60000,
-    agent,
+    agent, // <-- This disables keep-alive
     logLevel: 'debug',
     on: {
       error: (err, req, res) => {

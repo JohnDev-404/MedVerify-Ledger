@@ -6,8 +6,8 @@ services:
     plan: free
     region: oregon
     envVars:
-      - key: VERIFICATION_SERVICE_URL
-        value: https://medverify-verification.onrender.com
+      - - key: VERIFICATION_SERVICE_URL
+      - value: http://medverify-verification:10000
       - key: ADMIN_SERVICE_URL
         value: https://medverify-admin.onrender.com
       - key: SMS_WEBHOOK_URL

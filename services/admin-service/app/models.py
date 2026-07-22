@@ -7,3 +7,10 @@ class BatchResponse(BaseModel):
     id: int
     batch_number: str
     created_at: str  # ISO format
+
+    class BatchUpdate(BaseModel):
+        new_batch_number: str
+
+
+class BatchUpdate:
+    pass

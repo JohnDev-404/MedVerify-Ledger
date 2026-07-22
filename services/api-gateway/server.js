@@ -49,7 +49,7 @@ const VERIFICATION_SERVICE_URL = process.env.VERIFICATION_SERVICE_URL || 'https:
 const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL || 'https://medverify-admin.onrender.com';
 const SMS_SERVICE_URL = process.env.SMS_WEBHOOK_URL || 'https://medverify-sms.onrender.com';
 
-// --- Direct handler for /api/verify (bypass proxy) ---
+// --- Direct handlers for verification ---
 app.post('/api/verify', async (req, res) => {
   try {
     const response = await axios.post(`${VERIFICATION_SERVICE_URL}/verify`, req.body, {
@@ -67,7 +67,7 @@ app.post('/api/verify', async (req, res) => {
   }
 });
 
-// --- Direct handlers for /api/admin/batches (bypass proxy) ---
+// --- Direct handlers for admin (GET, POST, PUT, DELETE) ---
 app.get('/api/admin/batches', async (req, res) => {
   try {
     const apiKey = req.headers['api-key'];
@@ -113,7 +113,56 @@ app.post('/api/admin/batches', async (req, res) => {
   }
 });
 
-// --- Proxy for SMS (only if needed, keep as proxy) ---
+app.put('/api/admin/batches/:batchNumber', async (req, res) => {
+  try {
+    const apiKey = req.headers['api-key'];
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
+    }
+    const { batchNumber } = req.params;
+    const response = await axios.put(`${ADMIN_SERVICE_URL}/batches/${batchNumber}`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey,
+      },
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Admin PUT error:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(504).json({ error: 'Admin service unavailable' });
+    }
+  }
+});
+
+app.delete('/api/admin/batches/:batchNumber', async (req, res) => {
+  try {
+    const apiKey = req.headers['api-key'];
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
+    }
+    const { batchNumber } = req.params;
+    const response = await axios.delete(`${ADMIN_SERVICE_URL}/batches/${batchNumber}`, {
+      headers: {
+        'api-key': apiKey,
+      },
+      timeout: 30000,
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Admin DELETE error:', error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(504).json({ error: 'Admin service unavailable' });
+    }
+  }
+});
+
+// --- Proxy for SMS ---
 const { createProxyMiddleware } = require('http-proxy-middleware');
 app.use(
   '/api/sms',

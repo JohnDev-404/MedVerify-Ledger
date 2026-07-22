@@ -14,7 +14,7 @@
       padding: 40px 20px;
     }
     .container {
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
     }
     .card {
@@ -55,6 +55,7 @@
     .btn:hover { background: #1d4ed8; transform: scale(1.02); }
     .btn-danger { background: #dc2626; }
     .btn-danger:hover { background: #b91c1c; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
     .table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     .table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
     .table th { background: #f1f5f9; font-weight: 600; }
@@ -68,6 +69,20 @@
     .api-key-input input { flex: 1; }
     .back-link { color: #2563eb; text-decoration: none; font-weight: 600; }
     .back-link:hover { text-decoration: underline; }
+    .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .action-btns .edit-btn, .action-btns .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 6px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .action-btns .edit-btn:hover { background: #dbeafe; }
+    .action-btns .delete-btn:hover { background: #fee2e2; }
+    .batch-edit-input { display: none; width: 100%; padding: 4px 8px; border-radius: 6px; border: 2px solid #2563eb; }
+    .save-edit-btn, .cancel-edit-btn { display: none; }
   </style>
 </head>
 <body>
@@ -151,19 +166,110 @@
       container.innerHTML = `
         <table class="table">
           <thead>
-            <tr><th>ID</th><th>Batch Number</th><th>Created At</th></tr>
+            <tr><th>ID</th><th>Batch Number</th><th>Created At</th><th>Actions</th></tr>
           </thead>
           <tbody>
             ${data.map(b => `
-              <tr>
+              <tr data-batch="${b.batch_number}">
                 <td>${b.id}</td>
-                <td><strong>${b.batch_number}</strong></td>
+                <td>
+                  <span class="batch-text">${b.batch_number}</span>
+                  <input type="text" class="batch-edit-input" value="${b.batch_number}">
+                  <button class="save-edit-btn btn btn-sm" style="background: #16a34a; display:none;">Save</button>
+                  <button class="cancel-edit-btn btn btn-sm" style="background: #6b7280; display:none;">Cancel</button>
+                </td>
                 <td>${new Date(b.created_at).toLocaleString()}</td>
+                <td>
+                  <div class="action-btns">
+                    <button class="edit-btn" data-batch="${b.batch_number}">✏️</button>
+                    <button class="delete-btn" data-batch="${b.batch_number}">🗑️</button>
+                  </div>
+                </td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       `;
+
+      // Attach event listeners for edit and delete buttons
+      container.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const batch = btn.dataset.batch;
+          if (!confirm(`Delete batch "${batch}"?`)) return;
+          try {
+            await fetchWithAuth(`/api/admin/batches/${batch}`, { method: 'DELETE' });
+            loadBatches();
+          } catch (err) {
+            alert('Delete failed: ' + err.message);
+          }
+        });
+      });
+
+      container.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = btn.closest('tr');
+          const textSpan = row.querySelector('.batch-text');
+          const input = row.querySelector('.batch-edit-input');
+          const saveBtn = row.querySelector('.save-edit-btn');
+          const cancelBtn = row.querySelector('.cancel-edit-btn');
+          const batch = btn.dataset.batch;
+          textSpan.style.display = 'none';
+          input.style.display = 'inline-block';
+          input.value = batch;
+          saveBtn.style.display = 'inline-block';
+          cancelBtn.style.display = 'inline-block';
+          btn.style.display = 'none';
+        });
+      });
+
+      container.querySelectorAll('.save-edit-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const row = btn.closest('tr');
+          const oldBatch = row.dataset.batch;
+          const input = row.querySelector('.batch-edit-input');
+          const newBatch = input.value.trim();
+          if (!newBatch) { alert('Batch number cannot be empty'); return; }
+          if (newBatch === oldBatch) {
+            // Cancel edit
+            const editBtn = row.querySelector('.edit-btn');
+            const textSpan = row.querySelector('.batch-text');
+            const saveBtn = row.querySelector('.save-edit-btn');
+            const cancelBtn = row.querySelector('.cancel-edit-btn');
+            textSpan.style.display = 'inline';
+            input.style.display = 'none';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+            return;
+          }
+          try {
+            await fetchWithAuth(`/api/admin/batches/${oldBatch}`, {
+              method: 'PUT',
+              body: JSON.stringify({ new_batch_number: newBatch })
+            });
+            loadBatches();
+          } catch (err) {
+            alert('Update failed: ' + err.message);
+          }
+        });
+      });
+
+      container.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = btn.closest('tr');
+          const editBtn = row.querySelector('.edit-btn');
+          const textSpan = row.querySelector('.batch-text');
+          const input = row.querySelector('.batch-edit-input');
+          const saveBtn = row.querySelector('.save-edit-btn');
+          const cancelBtn = row.querySelector('.cancel-edit-btn');
+          textSpan.style.display = 'inline';
+          input.style.display = 'none';
+          saveBtn.style.display = 'none';
+          cancelBtn.style.display = 'none';
+          editBtn.style.display = 'inline-block';
+        });
+      });
+
     } catch (err) {
       container.innerHTML = `<p style="color: #dc2626;">Error loading batches: ${err.message}</p>`;
     }

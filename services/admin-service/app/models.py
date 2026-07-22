@@ -6,11 +6,7 @@ class BatchCreate(BaseModel):
 class BatchResponse(BaseModel):
     id: int
     batch_number: str
-    created_at: str  # ISO format
+    created_at: str
 
-    class BatchUpdate(BaseModel):
-        new_batch_number: str
-
-
-class BatchUpdate:
-    pass
+class BatchUpdate(BaseModel):
+    new_batch_number: str
